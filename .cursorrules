@@ -1,0 +1,211 @@
+# .cursorrules
+
+#### Persona
+
+You are an expert in **Svelte 5**, **SvelteKit**, **TypeScript**, **Drizzle ORM**, **next.chadcn‑svelte**, **AI Agents**, and modern WebSocket patterns. Produce concise, idiomatic code that follows our team conventions.
+
+---
+
+#### Coding rules
+
+1. **Use Svelte 5 runes only** (`$state`, `$derived`, `$effect`, `$props`, etc.). Never use Svelte 4 `$:` labels.
+2. All examples are **TypeScript‑strict** (`lang="ts"`, `strictNullChecks` on).
+3. Data layer is **Drizzle ORM**—avoid other ORMs and raw SQL unless illustrating migrations.
+4. UI must import **next.chadcn‑svelte** components, e.g.
+   ```ts
+   import { Button } from '$lib/components/ui/button';
+   ```
+5. **Keep files small** (≈ 200 LOC max). Split logic into focused modules under:
+   - `src/lib/server/**` — server‑only helpers (database, auth, WebSocket broadcast).
+   - `src/lib/client/**` — browser‑only helpers (WebSocket client, utilities).
+   - `src/lib/components/**` — reusable UI (next.chadcn‑svelte wrappers, icons, etc.).
+6. Style with **Tailwind CSS** utilities; avoid inline `style` attributes.
+7. Show only code relevant to the question—omit boilerplate covered here.
+8. Use project aliases: `$lib/*`, `@/*` (root `src`).
+9. Payloads over WebSocket must be camelCase JSON objects.
+
+---
+
+#### Svelte 5 runes quick reference
+
+```svelte
+<script lang="ts">
+	let count = $state(0); // reactive state
+	const double = $derived(count * 2); // derived value
+	$effect(() => console.log(count)); // side‑effect
+	export const color = $props<string>(); // exported prop
+</script>
+```
+
+---
+
+#### Drizzle ORM cookbook
+
+```ts
+// src/db/schema.ts
+import { pgTable, serial, varchar, timestamp } from 'drizzle-orm/pg-core';
+
+export const messages = pgTable('messages', {
+	id: serial('id').primaryKey(),
+	content: varchar('content', { length: 1000 }),
+	role: varchar('role', { length: 20 }),
+	chatId: varchar('chat_id', { length: 36 }),
+	createdAt: timestamp('created_at').defaultNow()
+});
+```
+
+Migration commands:
+
+```bash
+pnpm db:generate && pnpm db:push
+```
+
+---
+
+#### next.chadcn‑svelte usage pattern
+
+```svelte
+<script lang="ts">
+	import { Button } from '$lib/components/ui/button';
+</script>
+
+<Button on:click={send}>Send</Button>
+```
+
+---
+
+#### Custom WebSocket helpers
+
+Client side (`src/lib/websocket/client.svelte.js`):
+
+```svelte
+<script lang="ts">
+	import { socket } from '$lib/websocket/client.svelte.js';
+
+	socket.on(
+		`${job.id}.messageStarted`,
+		(data: { appPayload: { jobId: string; messageId: string } }) => {
+			// update UI
+		}
+	);
+</script>
+```
+
+Server broadcast (`src/lib/websocket/server.svelte.js`):
+
+```ts
+import { broadcastToUsersGlobal, broadcastToUsers } from '@/websocket/server.svelte.js';
+
+await broadcastToUsersGlobal([user.id], {
+	messageType: `${job.id}.messageStarted`,
+	data: { appPayload: { jobId: job.id, messageId } }
+});
+
+// inside +server.ts
+await broadcastToUsers(locals.wss, [user.id], {
+	messageType: `${job.id}.messageStarted`,
+	data: { appPayload: { jobId: job.id, messageId } }
+});
+```
+
+Guidelines
+
+- Use the provided wrapper (`socket`, `broadcastToUsers*`); do **not** import `socket.io-client`.
+- Channel names are template strings: `` `${job.id}.eventName` ``.
+- Payloads are plain JSON.
+
+---
+
+#### AI agents (@mastra)
+
+We use `@mastra` for building and orchestrating AI agents. Core components include:
+
+- **Agents**: Define specific roles (e.g., `linkedin.ts` for profile analysis).
+- **Tools**: Provide capabilities (e.g., `fetchLinkedinProfile`, `searchInternet`).
+- **Workflows**: Coordinate agents and tools for complex tasks.
+
+Find these under `src/lib/server/ai/`.
+
+When writing system prompts use the xml format.
+
+For example:
+
+<role>
+ You are an expert recruiter
+</role>
+---
+
+#### Folder conventions
+
+```
+.
+├── components.json
+├── drizzle
+│   ├── 0000_new_psynapse.sql
+│   └── meta
+│       ├── _journal.json
+│       └── 0000_snapshot.json
+├── drizzle.config.ts
+├── eslint.config.js
+├── package.json
+├── pnpm-lock.yaml
+├── postcss.config.js
+├── README.md
+├── src
+│   ├── app.css
+│   ├── app.d.ts
+│   ├── app.html
+│   ├── auth.ts
+│   ├── hooks.client.ts
+│   ├── hooks.server.ts
+│   ├── lib
+│   │   ├── components
+│   │   │   └── ui // all next.chadcn-svelte components
+│   │   │       ├── accordion
+│   │   │       │   ├── accordion-content.svelte
+│   │   │       │   ├── accordion-item.svelte
+│   │   │       │   ├── accordion-trigger.svelte
+│   │   │       │   └── index.ts
+│   │   ├── hooks
+│   │   │   └── is-mobile.svelte.ts
+│   │   ├── index.ts
+│   │   ├── server
+│   │   │   ├── ai
+│   │   │   │   ├── agents
+│   │   │   │   │   ├── index.ts
+│   │   │   │   │   └── weather.ts
+│   │   │   │   ├── index.ts
+│   │   │   │   ├── models.ts
+│   │   │   │   └── tools
+│   │   │   │       ├── index.ts
+│   │   │   │       └── weather.ts
+│   │   │   └── db
+│   │   │       ├── index.ts
+│   │   │       └── schema.ts
+│   │   ├── utils.ts
+│   │   └── websocket
+│   │       ├── client.svelte.ts
+│   │       └── server.svelte.ts
+│   └── routes
+│       ├── +layout.svelte
+│       └── +page.svelte
+├── static
+│   └── favicon.png
+├── svelte.config.js
+├── tailwind.config.ts
+├── tsconfig.json
+└── vite.config.ts
+```
+
+---
+
+##### Dos ✅
+
+- Write strongly‑typed, self‑documenting code.
+- Extract reusable helpers and keep modules focused.
+- Follow the small‑file rule—split early.
+- Always use uuidv4 for ids.
+
+##### Don'ts ❌
+
+- No Svelte 4 `$:` labels, `bind:this` hacks, or `
